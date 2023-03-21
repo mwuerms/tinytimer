@@ -1,0 +1,28 @@
+https://github.com/microchip-pic-avr-tools/pymcuprog
+
+install
+
+pip install pymcuprog
+
+use
+
+ERASE before write
+
+pymcuprog ping  -t uart -u COM3 -d attiny404 --clk 57600
+pymcuprog erase -t uart -u COM3 -d attiny404 --clk 57600
+pymcuprog write -t uart -u COM3 -d attiny404 --clk 57600 -f Release/tinytimer.hex
+
+
+pymcuprog --help
+
+Test connection
+
+pymcuprog ping -t uart -u COM3 -d attiny404
+pymcuprog reset -t uart -u COM3 -d attiny404 --clk 57600
+pymcuprog erase -t uart -u COM3 -d attiny404 --clk 57600
+pymcuprog read -t uart -u COM3 -d attiny404 --clk 57600 -f rdfile.hex
+pymcuprog write -t uart -u COM3 -d atmega404 --clk 57600 -f tinytimer.hex
+
+
+https://www.avrfreaks.net/s/topic/a5C3l000000UaJfEAK/t153393.hex
+
