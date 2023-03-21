@@ -1,0 +1,18 @@
+/**
+ * Martin Egli
+ * 2023-03-21
+ * module timer
+ */
+#include "io.h"
+#include "leds.h"
+
+void leds_Init(void) {
+	LED1_PORT.OUTCLR = LED1_PIN_BV;
+	LED1_PORT.DIRSET = LED1_PIN_BV;
+	LED2_PORT.OUTCLR = LED2_PIN_BV;
+	LED2_PORT.DIRSET = LED2_PIN_BV;
+	LED3_PORT.OUTCLR = LED3_PIN_BV;
+	LED3_PORT.DIRSET = LED3_PIN_BV;
+	LED4_PORT.OUTCLR = LED4_PIN_BV;
+	LED4_PORT.DIRSET = LED4_PIN_BV;
+}
