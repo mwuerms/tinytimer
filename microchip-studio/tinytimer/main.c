@@ -1,19 +1,19 @@
-/*
- * tinytimer.c
- *
- * Created: 21.03.2023 19:57:59
- * Author : Martin
- */ 
+/**
+ * Martin Egli
+ * 2023-03-21
+ * main loop
+ */
 
 // in io.h #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/cpufunc.h>
-//#include <avr/sleep.h>
 
 #include "project.h"
 #include "leds.h"
 #include "buttons.h"
-#include "timer.h"
+#include "pwr.h"
+#include "rtc.h"
+#include "ttimer.h"
 
 volatile uint8_t global_events;
 
@@ -25,8 +25,12 @@ void clock_init(void) {
 	// no RUNSTANDY CLKCTRL.OSC20MCTRLA = 0;
 }
 
+void cpuint_Init(void) {
+
+}
+
 void sleep_mode(void) {
-	sei();
+	
 }
 
 int main(void)
@@ -35,9 +39,14 @@ int main(void)
 	global_events = 0;
 
 	clock_init();
+	cpuint_Init();
+	pwr_Init();
+	pwr_ClaimMode(PWR_RUN);
+	rtc_Init();
+	
 	leds_Init();
 	buttons_Init();
-	timer_Init();
+	ttimer_Init();
 	
 	sei();
 	cli();
@@ -55,7 +64,7 @@ int main(void)
 			if(local_events) {
 				break;
 			}
-			sleep_mode();
+			pwr_Sleep();
 		}
     }
 }

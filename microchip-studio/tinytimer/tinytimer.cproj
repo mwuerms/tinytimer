@@ -141,10 +141,22 @@
     <Compile Include="project.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="timer.c">
+    <Compile Include="pwr.c">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="timer.h">
+    <Compile Include="pwr.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="rtc.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="rtc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="ttimer.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="ttimer.h">
       <SubType>compile</SubType>
     </Compile>
   </ItemGroup>
