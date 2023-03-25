@@ -44,7 +44,8 @@ int main(void)
 	leds_Off(1);
 	leds_Off(2);
 	leds_Off(3);
-	leds_ShowAlarm(0);
+	//leds_ShowAlarm(0);
+	leds_ShowRunning(0);
 	leds_ShowRunning(1);
 	leds_ShowRunning(2);
 	leds_ShowRunning(3);
