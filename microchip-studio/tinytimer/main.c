@@ -26,11 +26,9 @@ void clock_init(void) {
 }
 
 void cpuint_Init(void) {
+	//	FUSE.OSCCFG = FUSE_FREQSEL0_bm
+	//SIGROW.DEVICEID0
 
-}
-
-void sleep_mode(void) {
-	
 }
 
 int main(void)
@@ -40,6 +38,27 @@ int main(void)
 
 	clock_init();
 	cpuint_Init();
+
+	leds_Init();
+	leds_Off(0);
+	leds_Off(1);
+	leds_Off(2);
+	leds_Off(3);
+	leds_ShowAlarm(0);
+	leds_ShowRunning(1);
+	leds_ShowRunning(2);
+	leds_ShowRunning(3);
+	sei();
+	while(1);
+	/*
+	PORTA.DIR = _BV(3);
+	while(1) {
+		PORTA.OUTSET = _BV(3);
+		for(volatile uint32_t xx = 0; xx < 100000; xx++);
+		PORTA.OUTCLR = _BV(3);
+		for(volatile uint32_t xx = 0; xx < 100000; xx++);
+	}*/
+/*
 	pwr_Init();
 	pwr_ClaimMode(PWR_RUN);
 	rtc_Init();
@@ -50,8 +69,7 @@ int main(void)
 	
 	sei();
 	cli();
-	
-    /* Replace with your application code */
+
     while (1) 
     {
 		if(local_events) {
@@ -66,6 +84,6 @@ int main(void)
 			}
 			pwr_Sleep();
 		}
-    }
+    }*/
 }
 
