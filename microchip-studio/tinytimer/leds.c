@@ -17,6 +17,7 @@ static const uint8_t leds_running_sin_lookup[] = {0, 8, 16, 24, 32, 40, 47, 54, 
 
 typedef enum {
 	LED_ST_OFF = 0,
+	LED_ST_ON,
 	LED_ST_RUNNING,
 	LED_ST_PAUSE,
 	LED_ST_ALARM
@@ -101,9 +102,10 @@ void leds_Display(uint8_t led_nb) {
 				}
 			}
 			break;
+		// nodthing to do
 		case LED_ST_OFF:
+		case LED_ST_ON:
 		default:
-			leds_Clr(led_nb);
 			break;
 	}
 }
@@ -112,7 +114,7 @@ static volatile uint8_t leds_cnt;
 ISR(TCB0_INT_vect) {
 	TCB0.INTFLAGS = TCB_CAPT_bm; //irq clear
 	
-	for(leds_cnt = 0; leds_cnt < NB_TTIMER; leds_cnt++) {
+	for(leds_cnt = 0; leds_cnt < NB_LEDS; leds_cnt++) {
 		leds_Display(leds_cnt);
 	}
 }
@@ -159,6 +161,12 @@ void leds_Init(void) {
 	LED4_PORT.DIRSET = LED4_PIN_BV;
 
 	tcb0_start();
+}
+
+void leds_On(uint8_t led_nb) {
+	led_ctrl[led_nb].state = LED_ST_ON;
+	leds_Set(led_nb);
+	return;
 }
 
 void leds_Off(uint8_t led_nb) {

@@ -5,10 +5,12 @@
  */
 
 #include <avr/io.h>
+#include <avr/cpufunc.h>
 #include <avr/interrupt.h>
 #include "rtc.h"
 #include "ttimer.h"
 #include "pwr.h"
+#include "leds.h"
 
 typedef enum {
     RTC_ST_OFF = 0,
@@ -25,12 +27,32 @@ static rtc_ctrl_t rtc_ctrl[NB_TTIMER];
 
 // use PIT to generate a 1 s interrupt, this is accurate enough for this application
 // use CNT to have a 1 ms timing
-ISR(RTC_PIT_vect) {
-    // testing
-    PORTA.DIR = _BV(2);
-    PORTA.OUTTGL = _BV(2);
-	return;
+ISR(RTC_CNT_vect) {
+    if(RTC.INTFLAGS & 0x01) {
+        leds_On(LED1);
+        leds_Off(LED1);
+        leds_On(LED1);
+        leds_Off(LED1);
+    }
+    if(RTC.INTFLAGS & 0x02) {
+        leds_On(LED1);
+        leds_Off(LED1);
+        leds_On(LED1);
+        leds_Off(LED1);
+        leds_On(LED1);
+        leds_Off(LED1);
+        leds_On(LED1);
+        leds_Off(LED1);
+    }
+    RTC.INTFLAGS = 3;
 }
+/*ISR(RTC_PIT_vect) {
+    // testing
+    leds_On(LED1);
+    RTC.PITINTFLAGS = RTC_PI_bm; // clr
+    _NOP();
+	leds_Off(LED1);
+}*/
 
 void rtc_Init(void) {
 	uint8_t n;
@@ -43,13 +65,23 @@ void rtc_Init(void) {
 }
 
 void rtc_StartModule(void) {
+    leds_Off(LED1);
+    leds_On(LED1);
+    leds_Off(LED1);
+    leds_On(LED1);
+    RTC.CTRLA = 1; // run
     RTC.CTRLA = RTC_RUNSTDBY_bm;	// RUN in standby, prescaler = 1
-	RTC.CLKSEL = RTC_CLKSEL0_bm;	// 1024 Hz
+	RTC.CLKSEL = 0; // 32 kHz RTC_CLKSEL0_bm;	// 1024 Hz
     RTC.CNT = 0;
-    RTC.PITCTRLA = (RTC_PERIOD3_bm | RTC_PERIOD0_bm | RTC_PITEN_bm);     // CYC1024 = 9 = 0b1001
-    RTC.PITINTFLAGS = RTC_PI_bm; // clr
-	RTC.PITINTCTRL = RTC_PI_bm; // enable INT
-    RTC.CTRLA |= RTC_RTCEN_bm;
+    RTC.PER = 0xFFFF; // maximum -> free running
+    RTC.CMP = 32678/2*3;
+    RTC.INTFLAGS = 3;
+    RTC.INTCTRL = 3;
+    RTC.CTRLA |= 1; // run
+    //RTC.PITCTRLA = (RTC_PERIOD3_bm | RTC_PERIOD0_bm | RTC_PITEN_bm);     // CYC1024 = 9 = 0b1001
+    //RTC.PITINTFLAGS = RTC_PI_bm; // clr
+	//RTC.PITINTCTRL = RTC_PI_bm; // enable INT
+    //RTC.CTRLA |= RTC_RTCEN_bm;
 }
 
 void rtc_StopModule(void) {

@@ -40,40 +40,37 @@ int main(void)
 	cpuint_Init();
 
 	leds_Init();
-	leds_Off(0);
-	leds_Off(1);
-	leds_Off(2);
-	leds_Off(3);
-	//leds_ShowAlarm(0);
-	leds_ShowRunning(0);
-	leds_ShowRunning(1);
-	leds_ShowRunning(2);
-	leds_ShowRunning(3);
-	sei();
-	while(1);
-	/*
-	PORTA.DIR = _BV(3);
-	while(1) {
-		PORTA.OUTSET = _BV(3);
-		for(volatile uint32_t xx = 0; xx < 100000; xx++);
-		PORTA.OUTCLR = _BV(3);
-		for(volatile uint32_t xx = 0; xx < 100000; xx++);
-	}*/
-/*
+	
 	pwr_Init();
 	pwr_ClaimMode(PWR_RUN);
-	rtc_Init();
-	
+		
 	leds_Init();
 	buttons_Init();
+	rtc_Init();
+	rtc_StartModule();
 	ttimer_Init();
 	
-	sei();
-	cli();
+	leds_On(LED1);
+	//leds_Off(LED1);
+	leds_Off(LED2);
+	leds_Off(LED3);
+	leds_Off(LED4);
+	//leds_ShowAlarm(LED1);
+	//leds_ShowRunning(LED1);
+	leds_ShowRunning(LED2);
+	leds_ShowRunning(LED3);
+	leds_ShowRunning(LED4);
+	
+	leds_Off(LED1);
 
+	sei();
+
+	while((CLKCTRL.MCLKSTATUS & 0x20) == 0);
+	leds_On(LED1);
+	
     while (1) 
     {
-		if(local_events) {
+		if(local_events & 0x01) {
 			_NOP();
 		}
 		while(1) {
@@ -85,6 +82,6 @@ int main(void)
 			}
 			pwr_Sleep();
 		}
-    }*/
+    }
 }
 
