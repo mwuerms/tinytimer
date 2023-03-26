@@ -9,6 +9,12 @@
 
 #include <stdint.h>
 
+enum {
+    BUTTON1 = 0,
+    BUTTON2,
+    BUTTON3,
+    BUTTON4
+}
 void buttons_Init(void);
 
 #endif
