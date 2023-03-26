@@ -12,13 +12,16 @@
 
 #include "rtc.h"
 
+#define NB_RTC_TIMER NB_TTIMER
 void rtc_Init(void);
 
 void rtc_StartModule(void);
 void rtc_StopModule(void);
 
-void rtc_StartSingleTimeout(uint8_t ttimer_nb, uint16_t duration_s);
-void rtc_StopTimeout(uint8_t ttimer_nb);
-void rtc_Pause(uint8_t ttimer_nb);
-void rtc_Resume(uint8_t ttimer_nb);
+uint16_t rtc_GetCNT(void) ;
+
+void rtc_StartSingleTimeout(uint8_t timer_nb, uint16_t duration_s, uint8_t event);
+void rtc_StopTimeout(uint8_t timer_nb);
+void rtc_Pause(uint8_t timer_nb);
+void rtc_Resume(uint8_t timer_nb);
 #endif // _RTC_H_
