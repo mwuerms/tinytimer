@@ -138,15 +138,48 @@ static inline void rtc_InitTimerProcessList(void) {
     }
 }
 
+static void rtc_SendLEDEvent(void) {
+    uint8_t proc_timer = rtc_RemoveHeadFromTimerProcessList();
+    if(proc_timer != RTC_PROCESS_TIMER_UNUSED) {
+        if(rtc_timers[proc_timer].status == RTC_ST_RUNNING) {
+            rtc_timers[proc_timer].status = RTC_ST_OFF;
+            // send event here
+            rtc_timers[proc_timer].led_nb = 0;
+            rtc_timers[proc_timer].event = 0;
+        }
+    }
+}
+
 ISR(RTC_CNT_vect) {
+    uint8_t proc_timer = rtc_PeekTimerProcessList();
     if(RTC.INTFLAGS & RTC_OVF_bm) {
         // OVF
         RTC.INTFLAGS = RTC_OVF_bm;   // clr
-        rtc_systime.
+        rtc_systime.u16.h++;    // ovf -> so h++
+        if(proc_timer != RTC_PROCESS_TIMER_UNUSED) {
+            if(rtc_timers[proc_timer].status == RTC_ST_RUNNING) {
+                if(rtc_timers[proc_timer].compare.u16.h == rtc_systime.u16.h) {
+                    // set CMP to u16.l
+                    if(rtc_timers[proc_timer].compare.u16.l > 5) {
+                        RTC.CMP = rtc_timers[proc_timer].compare.u16.l;
+                        RTC.INTFLAGS = RTC_CMP_bm;   // clr
+                        RTC.INTCTRL |= RTC_CMP_bm;
+                    }
+                    else {
+                        // do call rtc_SendLEDEvent() from here, because sync will not work on only 5 RTC_CNTs
+                        rtc_SendLEDEvent();
+                        // check next CMP right away here
+                    }
+                }
+            }
+        }
     }
     if(RTC.INTFLAGS & RTC_CMP_bm) {
         // CMP
+        RTC.INTCTRL &= ~RTC_CMP_bm; // only once
         RTC.INTFLAGS = RTC_CMP_bm;   // clr
+        rtc_SendLEDEvent();
+        // check next CMP right away here
     }
 }
 
