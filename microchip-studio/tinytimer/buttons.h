@@ -16,8 +16,9 @@ enum {
     BUTTON3,
     BUTTON4
 };
-
 #define NB_BUTTONS NB_TTIMER
+
 void buttons_Init(void);
+void button_ProcessEvent(void);
 
 #endif

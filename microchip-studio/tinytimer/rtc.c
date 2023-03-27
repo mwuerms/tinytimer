@@ -19,11 +19,11 @@ typedef enum {
 } rtc_state_t;
 
 typedef union {
-    uint32_t value;
+    uint32_t u32;
     struct {
         uint16_t l;
         uint16_t h;
-    };
+    } u16;
 } uint16_32_t;
 
 static uint16_32_t rtc_systime; // in 1/1024 seconds
@@ -49,8 +49,8 @@ static volatile uint8_t rtc_timer_process_list[NB_RTC_TIMER+1]; // store timer_n
 #define RTC_PROCESS_TIMER_UNUSED 0xFF
 
 static inline void rtc_UpdateDurationOfRTCTimer(uint8_t timer_nb, uint32_t now) {
-    rtc_timers[timer_nb].starttime.value = rtc_systime.value;   // now
-    rtc_timers[timer_nb].duration.value = rtc_timers[timer_nb].compare.value - rtc_timers[timer_nb].starttime.value;  // duration = time left = end - now
+    rtc_timers[timer_nb].starttime.u32 = rtc_systime.u32;   // now
+    rtc_timers[timer_nb].duration.u32 = rtc_timers[timer_nb].compare.u32 - rtc_timers[timer_nb].starttime.u32;  // duration = time left = end - now
 }
 
 // insert timer_nb at rtc_timer_process_list[pos]
@@ -76,9 +76,9 @@ static uint8_t rtc_SortTimerInTimerProcessListByDuration(uint8_t timer_nb) {
             // found end of list
             break;
         }
-        rtc_UpdateDurationOfRTCTimer(rtc_timer_process_list[n], rtc_systime.value);
+        rtc_UpdateDurationOfRTCTimer(rtc_timer_process_list[n], rtc_systime.u32);
     }
-    // sort new timer in by its duration.value
+    // sort new timer in by its duration.u32
     for(n = 0; n < RTC_PROCESS_TIMER_LIST_SIZE; n++) {
         if(rtc_timer_process_list[n] == RTC_PROCESS_TIMER_UNUSED) {
             // this place in unused, use this one
@@ -86,7 +86,7 @@ static uint8_t rtc_SortTimerInTimerProcessListByDuration(uint8_t timer_nb) {
             // done
             break;
         }
-        if(rtc_timers[timer_nb].duration.value < rtc_timers[rtc_timer_process_list[n]].duration.value) {
+        if(rtc_timers[timer_nb].duration.u32 < rtc_timers[rtc_timer_process_list[n]].duration.u32) {
             // insert timer_nb at this point
             rtc_InsertTimerInTimerProcessListAtPosition(timer_nb, n);
             // done
@@ -131,7 +131,7 @@ static uint8_t rtc_RemoveGivenTimerNbFromTimerProcessList(uint8_t timer_nb) {
     return ans;
 }
 
-static void rtc_InitTimerProcessList(void) {
+static inline void rtc_InitTimerProcessList(void) {
     uint8_t n;
     for(n = 0; n < RTC_PROCESS_TIMER_LIST_SIZE; n++) {
         rtc_timer_process_list[n] = RTC_PROCESS_TIMER_UNUSED;
@@ -139,34 +139,38 @@ static void rtc_InitTimerProcessList(void) {
 }
 
 ISR(RTC_CNT_vect) {
-    if(RTC.INTFLAGS & 0x01) {
+    if(RTC.INTFLAGS & RTC_OVF_bm) {
         // OVF
-        RTC.INTFLAGS = 1;   // clr
+        RTC.INTFLAGS = RTC_OVF_bm;   // clr
+        rtc_systime.
     }
-    if(RTC.INTFLAGS & 0x02) {
+    if(RTC.INTFLAGS & RTC_CMP_bm) {
         // CMP
-        RTC.INTFLAGS = 2;   // clr
+        RTC.INTFLAGS = RTC_CMP_bm;   // clr
     }
 }
 
 void rtc_Init(void) {
 	uint8_t n;
+    rtc_systime.u32 = 0;
     for(n = 0; n < NB_TTIMER; n++) {
         rtc_timers[n].status = RTC_ST_OFF;
     }
-    // The PIT will continue to operate in any sleep mode.
+    rtc_InitTimerProcessList();
     pwr_ClaimMode(PWR_POWER_DOWN);
 }
 
 void rtc_StartModule(void) {
+    // vars
+    rtc_systime.u32 = 0;
+    // module
     RTC.CTRLA = RTC_RUNSTDBY_bm | RTC_RTCEN_bm;	// RUN in standby, prescaler = 1
 	RTC.CLKSEL = RTC_CLKSEL0_bm;	// 1024 Hz
     RTC.CNT = 0;
     RTC.PER = 0xFFFF; // maximum -> free running
-    RTC.CMP = 32678/2*3;
-    RTC.INTFLAGS = RTC_INTFLAGS;
+    RTC.CMP = 0xFFFF; // unused at the moment
+    RTC.INTFLAGS = (RTC_OVF_bm);//|RTC_CMP_bm);
     RTC.INTCTRL = 3;
-    RTC.CTRLA |= RTC_RTCEN_bm; // run
 }
 
 void rtc_StopModule(void) {
@@ -193,9 +197,9 @@ void rtc_StartSingleTimeout(uint8_t timer_nb, uint16_t duration_s, uint8_t event
     rtc_timers[timer_nb].event = event;
 
     rtc_UpdateSystime();
-    rtc_timers[timer_nb].starttime.value = rtc_systime.value;   // now
-    rtc_timers[timer_nb].duration.value = (uint32_t)duration_s * 1024;
-    rtc_timers[timer_nb].compare.value = rtc_timers[timer_nb].starttime.value + rtc_timers[timer_nb].duration.value;
+    rtc_timers[timer_nb].starttime.u32 = rtc_systime.u32;   // now
+    rtc_timers[timer_nb].duration.u32 = (uint32_t)duration_s * 1024;
+    rtc_timers[timer_nb].compare.u32 = rtc_timers[timer_nb].starttime.u32 + rtc_timers[timer_nb].duration.u32;
     rtc_timers[timer_nb].status = RTC_ST_RUNNING;
 
     rtc_SortTimerInTimerProcessListByDuration(timer_nb);
@@ -210,7 +214,7 @@ void rtc_StopTimeout(uint8_t timer_nb) {
 void rtc_Pause(uint8_t timer_nb) {
     rtc_timers[timer_nb].status = RTC_ST_PAUSE;
     rtc_UpdateSystime();
-    rtc_UpdateDurationOfRTCTimer(timer_nb, rtc_systime.value);
+    rtc_UpdateDurationOfRTCTimer(timer_nb, rtc_systime.u32);
     rtc_RemoveGivenTimerNbFromTimerProcessList(timer_nb);
 }
 
@@ -220,8 +224,8 @@ void rtc_Resume(uint8_t timer_nb) {
         return;
     }
     rtc_UpdateSystime();
-    rtc_timers[timer_nb].starttime.value = rtc_systime.value;   // now
-    rtc_timers[timer_nb].compare.value = rtc_timers[timer_nb].starttime.value + rtc_timers[timer_nb].duration.value;
+    rtc_timers[timer_nb].starttime.u32 = rtc_systime.u32;   // now
+    rtc_timers[timer_nb].compare.u32 = rtc_timers[timer_nb].starttime.u32 + rtc_timers[timer_nb].duration.u32;
     rtc_timers[timer_nb].status = RTC_ST_RUNNING;
     rtc_SortTimerInTimerProcessListByDuration(timer_nb);
 }

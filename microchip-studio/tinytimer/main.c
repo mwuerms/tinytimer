@@ -50,34 +50,23 @@ int main(void)
 	rtc_StartModule();
 	ttimer_Init();
 	
-	leds_On(LED1);
-	//leds_Off(LED1);
-	leds_Off(LED2);
-	leds_Off(LED3);
-	leds_Off(LED4);
-	//leds_ShowAlarm(LED1);
-	//leds_ShowRunning(LED1);
-	leds_ShowRunning(LED2);
-	leds_ShowRunning(LED3);
-	leds_ShowRunning(LED4);
-	
-	leds_Off(LED1);
-
 	sei();
-
-	while((CLKCTRL.MCLKSTATUS & 0x20) == 0);
-	leds_On(LED1);
 	
     while (1) 
     {
-		if(local_events & 0x01) {
-			_NOP();
+		if(local_events & EV_BUTTON) {
+			button_ProcessEvent();
 		}
+
+		// synv events from background and/or go to sleep
 		while(1) {
 			cli();
+			// sync from background
 			local_events = global_events;
+			global_events = 0;
 			
 			if(local_events) {
+				sei();
 				break;
 			}
 			pwr_Sleep();

@@ -8,7 +8,10 @@
 #define _PROJECT_TINYTIMER_H_
 
 #include <stdint.h>
+#include <avr/cpufunc.h>
 
 extern volatile uint8_t global_events;
+#define EV_WAKEUP   _BV(0)
+#define EV_BUTTON   _BV(1)
 
 #endif
