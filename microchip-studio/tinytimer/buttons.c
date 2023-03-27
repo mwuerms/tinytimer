@@ -4,17 +4,69 @@
  * module timer
  */
 
+#include <avr/interrupt.h>
 #include "io.h"
 #include "buttons.h"
-#include <avr/interrupt.h>
+#include "rtc.h"
 
+static inline uint8_t button_GetIN(uint8_t button_nb) {
+	switch(button_nb) {
+		case BUTTON1: 
+			if(BUTTON1_PORT.IN & BUTTON1_PIN_BV)
+				return 1;
+			break;
+		case BUTTON2: 
+			if(BUTTON2_PORT.IN & BUTTON2_PIN_BV)
+				return 1;
+			break;
+		case BUTTON3: 
+			if(BUTTON3_PORT.IN & BUTTON3_PIN_BV)
+				return 1;
+			break;
+		case BUTTON4: 
+			if(BUTTON4_PORT.IN & BUTTON4_PIN_BV)
+				return 1;
+			break;
+	}
+	return 0;
+}
+
+static uint16_t button_rtc_cnt_pressed[NB_BUTTONS];
+//static uint16_t button_rtc_cnt_released[NB_BUTTONS];
+
+#define RTC_CNT_100ms	(uint16_t)(0.1*1024)  // 0.1s * 1024
+#define RTC_CNT_1s		(1*1024) // 1.0s * 1024
+#define RTC_CNT_2s		(2*1024) // 2.0s * 1024
 static void button_ProcessInt(uint8_t button_nb) {
-	if(BUTTON4_PORT.IN & BUTTON4_PIN_BV) {
-			// rising edge
+	uint8_t  button_value = button_GetIN(button_nb);
+	uint16_t rtc_cnt_value = rtc_GetCNT();
+	if(button_value) {
+		// rising edge: released
+		if(rtc_cnt_value > button_rtc_cnt_pressed[button_nb]) {
+			rtc_cnt_value -= button_rtc_cnt_pressed[button_nb];
 		}
 		else {
-			// falling edge
+			button_rtc_cnt_pressed[button_nb] -= rtc_cnt_value;
+			rtc_cnt_value = button_rtc_cnt_pressed[button_nb];
 		}
+		if(rtc_cnt_value < RTC_CNT_100ms) {
+			// too short, nothing to do
+			return;
+		}
+		else if(rtc_cnt_value < RTC_CNT_1s) {
+			ttimer_ProcessEvents(button_nb, TT_EV_BUTTON_SHORT_PRESSED);
+		}
+		else if(rtc_cnt_value < RTC_CNT_2s) {
+			ttimer_ProcessEvents(button_nb, TT_EV_BUTTON_1s_LONG_PRESSED);
+		}
+		else {
+			ttimer_ProcessEvents(button_nb, TT_EV_BUTTON_2s_LONG_PRESSED);
+		}
+	}
+	else {
+		// falling edge: pressed
+		button_rtc_cnt_pressed[button_nb] = rtc_cnt_value; // save to evaluate released
+	}
 }
 
 
