@@ -7,6 +7,7 @@
 #include <avr/io.h>
 #include <avr/cpufunc.h>
 #include <avr/interrupt.h>
+#include "project.h"
 #include "rtc.h"
 #include "ttimer.h"
 #include "pwr.h"
@@ -15,7 +16,8 @@
 typedef enum {
     RTC_ST_OFF = 0,
     RTC_ST_RUNNING,
-    RTC_ST_PAUSE
+    RTC_ST_PAUSE,
+    RTC_ST_TIMEOUT
 } rtc_state_t;
 
 typedef union {
@@ -29,7 +31,7 @@ typedef union {
 static uint16_32_t rtc_systime; // in 1/1024 seconds
 static inline void rtc_UpdateSystime(void) {
     // save SR
-    rtc_systime.l = rtc_GetCNT();
+    rtc_systime.u16.l = rtc_GetCNT();
     // restore SR
 }
 
@@ -39,8 +41,6 @@ typedef struct {
     uint16_32_t compare; // in 1/1024 seconds
     uint16_t timeout_s;
     uint8_t status;     // use rtc_state_t
-    uint8_t led_nb;
-    uint8_t event;
 } rtc_timer_t;
 
 static rtc_timer_t rtc_timers[NB_RTC_TIMER];
@@ -98,19 +98,23 @@ static uint8_t rtc_SortTimerInTimerProcessListByDuration(uint8_t timer_nb) {
 
 #define rtc_PeekTimerProcessList() rtc_timer_process_list[0];
 
-// pop 1st, copy all others from back ot front, [0] = front/head, fill in UNUSED at the back
-static uint8_t rtc_RemoveHeadFromTimerProcessList(void) {
+static uint8_t rtc_RemovePosFromTimerProcessList(uint8_t pos) {
     uint8_t ans, n;
-    ans = rtc_timer_process_list[0];
-    for(n = 0; n < (RTC_PROCESS_TIMER_LIST_SIZE-1); n++) {
+    ans = rtc_timer_process_list[pos];
+    for(n = pos; n < (RTC_PROCESS_TIMER_LIST_SIZE-1); n++) {
         rtc_timer_process_list[n] = rtc_timer_process_list[n+1];
     }
     rtc_timer_process_list[n] = RTC_PROCESS_TIMER_UNUSED;
     return ans;
 }
 
+// pop 1st, copy all others from back ot front, [0] = front/head, fill in UNUSED at the back
+static uint8_t rtc_RemoveHeadFromTimerProcessList(void) {
+    return rtc_RemovePosFromTimerProcessList(0);
+}
+
 static uint8_t rtc_RemoveGivenTimerNbFromTimerProcessList(uint8_t timer_nb) {
-    uint8_t ans, n, pos;
+    uint8_t n, pos;
     // find pos of timer_nb
     pos = RTC_PROCESS_TIMER_LIST_SIZE;
     for(n = 0; n < RTC_PROCESS_TIMER_LIST_SIZE; n++) {
@@ -121,14 +125,9 @@ static uint8_t rtc_RemoveGivenTimerNbFromTimerProcessList(uint8_t timer_nb) {
     }
     if(pos == RTC_PROCESS_TIMER_LIST_SIZE) {
         // not found, so do not remove
-        return 0;
+        return RTC_PROCESS_TIMER_UNUSED;
     }
-    ans = rtc_timer_process_list[pos];
-    for(n = pos; n < (RTC_PROCESS_TIMER_LIST_SIZE-1); n++) {
-        rtc_timer_process_list[n] = rtc_timer_process_list[n+1];
-    }
-    rtc_timer_process_list[n] = RTC_PROCESS_TIMER_UNUSED;
-    return ans;
+    return rtc_RemovePosFromTimerProcessList(pos);
 }
 
 static inline void rtc_InitTimerProcessList(void) {
@@ -142,37 +141,40 @@ static void rtc_SendLEDEvent(void) {
     uint8_t proc_timer = rtc_RemoveHeadFromTimerProcessList();
     if(proc_timer != RTC_PROCESS_TIMER_UNUSED) {
         if(rtc_timers[proc_timer].status == RTC_ST_RUNNING) {
-            rtc_timers[proc_timer].status = RTC_ST_OFF;
-            // send event here
-            rtc_timers[proc_timer].led_nb = 0;
-            rtc_timers[proc_timer].event = 0;
+            rtc_timers[proc_timer].status = RTC_ST_TIMEOUT;
+            global_events |= EV_RTC;
+        }
+    }
+}
+
+static void rtc_ProcessOVF(void) {
+    uint8_t proc_timer = rtc_PeekTimerProcessList();
+    RTC.INTFLAGS = RTC_OVF_bm;   // clr
+    rtc_systime.u16.h++;    // ovf -> so h++
+    if(proc_timer != RTC_PROCESS_TIMER_UNUSED) {
+        if(rtc_timers[proc_timer].status == RTC_ST_RUNNING) {
+            if(rtc_timers[proc_timer].compare.u16.h == rtc_systime.u16.h) {
+                // set CMP to u16.l
+                if(rtc_timers[proc_timer].compare.u16.l > 5) {
+                    RTC.CMP = rtc_timers[proc_timer].compare.u16.l;
+                    RTC.INTFLAGS = RTC_CMP_bm;   // clr
+                    RTC.INTCTRL |= RTC_CMP_bm;
+                }
+                else {
+                    // do call rtc_SendLEDEvent() from here, because sync will not work on only 5 RTC_CNTs
+                    rtc_SendLEDEvent();
+                    // check next CMP right away here
+                    rtc_ProcessOVF();
+                }
+            }
         }
     }
 }
 
 ISR(RTC_CNT_vect) {
-    uint8_t proc_timer = rtc_PeekTimerProcessList();
     if(RTC.INTFLAGS & RTC_OVF_bm) {
         // OVF
-        RTC.INTFLAGS = RTC_OVF_bm;   // clr
-        rtc_systime.u16.h++;    // ovf -> so h++
-        if(proc_timer != RTC_PROCESS_TIMER_UNUSED) {
-            if(rtc_timers[proc_timer].status == RTC_ST_RUNNING) {
-                if(rtc_timers[proc_timer].compare.u16.h == rtc_systime.u16.h) {
-                    // set CMP to u16.l
-                    if(rtc_timers[proc_timer].compare.u16.l > 5) {
-                        RTC.CMP = rtc_timers[proc_timer].compare.u16.l;
-                        RTC.INTFLAGS = RTC_CMP_bm;   // clr
-                        RTC.INTCTRL |= RTC_CMP_bm;
-                    }
-                    else {
-                        // do call rtc_SendLEDEvent() from here, because sync will not work on only 5 RTC_CNTs
-                        rtc_SendLEDEvent();
-                        // check next CMP right away here
-                    }
-                }
-            }
-        }
+        rtc_ProcessOVF();
     }
     if(RTC.INTFLAGS & RTC_CMP_bm) {
         // CMP
@@ -180,6 +182,7 @@ ISR(RTC_CNT_vect) {
         RTC.INTFLAGS = RTC_CMP_bm;   // clr
         rtc_SendLEDEvent();
         // check next CMP right away here
+        rtc_ProcessOVF();
     }
 }
 
@@ -224,10 +227,8 @@ uint16_t rtc_GetCNT(void) {
     return reg1;
 }
 
-void rtc_StartSingleTimeout(uint8_t timer_nb, uint16_t duration_s, uint8_t event) {
-    rtc_timers[timer_nb].led_nb = timer_nb;
+void rtc_StartSingleTimeout(uint8_t timer_nb, uint16_t duration_s) {
     rtc_timers[timer_nb].timeout_s = duration_s;
-    rtc_timers[timer_nb].event = event;
 
     rtc_UpdateSystime();
     rtc_timers[timer_nb].starttime.u32 = rtc_systime.u32;   // now
@@ -261,4 +262,14 @@ void rtc_Resume(uint8_t timer_nb) {
     rtc_timers[timer_nb].compare.u32 = rtc_timers[timer_nb].starttime.u32 + rtc_timers[timer_nb].duration.u32;
     rtc_timers[timer_nb].status = RTC_ST_RUNNING;
     rtc_SortTimerInTimerProcessListByDuration(timer_nb);
+}
+
+void rtc_ProcessEvent(void) {
+    uint8_t n;
+    for(n = 0; n < NB_RTC_TIMER; n++) {
+        if(rtc_timers[n].status == RTC_ST_TIMEOUT) {
+            rtc_timers[n].status = RTC_ST_OFF;
+            ttimer_ProcessEvents(n, TT_EV_TIMEOUT);
+        }
+    }
 }

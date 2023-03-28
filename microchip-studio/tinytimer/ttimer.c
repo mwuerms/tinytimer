@@ -54,7 +54,7 @@ void ttimer_ProcessEvents(uint8_t ttimer_nb, uint8_t events) {
 				// starting
 				ttimer_ctrl[ttimer_nb].state = TT_ST_RUNNING;
 				// duration and stuff ttimer_ctrl[ttimer_nb].
-				rtc_StartSingleTimeout(ttimer_nb, ttimer_ctrl[ttimer_nb].timeout_sec, TT_EV_TIMEOUT);
+				rtc_StartSingleTimeout(ttimer_nb, ttimer_ctrl[ttimer_nb].timeout_sec);
 				leds_ShowRunning(ttimer_nb);
 			}
 			break;
@@ -63,7 +63,7 @@ void ttimer_ProcessEvents(uint8_t ttimer_nb, uint8_t events) {
 				// alarm
 				ttimer_ctrl[ttimer_nb].state = TT_ST_ALARM;
 				// add timeout to clear alarm
-				rtc_StartSingleTimeout(ttimer_nb, alarm_duration, TT_EV_TIMEOUT);
+				rtc_StartSingleTimeout(ttimer_nb, alarm_duration);
 				leds_ShowAlarm(ttimer_nb);
 			}
 			else if(events & TT_EV_BUTTON_2s_LONG_PRESSED) {

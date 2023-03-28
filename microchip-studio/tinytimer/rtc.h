@@ -20,8 +20,11 @@ void rtc_StopModule(void);
 
 uint16_t rtc_GetCNT(void) ;
 
-void rtc_StartSingleTimeout(uint8_t timer_nb, uint16_t duration_s, uint8_t event);
+void rtc_StartSingleTimeout(uint8_t timer_nb, uint16_t duration_s);
 void rtc_StopTimeout(uint8_t timer_nb);
 void rtc_Pause(uint8_t timer_nb);
 void rtc_Resume(uint8_t timer_nb);
+
+void rtc_ProcessEvent(void);
+
 #endif // _RTC_H_

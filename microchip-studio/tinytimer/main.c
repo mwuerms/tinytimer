@@ -58,6 +58,10 @@ int main(void)
 			button_ProcessEvent();
 		}
 
+		if(local_events & EV_RTC) {
+			rtc_ProcessEvent();
+		}
+
 		// synv events from background and/or go to sleep
 		while(1) {
 			cli();
