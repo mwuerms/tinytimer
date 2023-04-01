@@ -4,6 +4,7 @@
  * module tiny timer
  */
 
+#include <util/atomic.h>
 #include <avr/io.h>
 #include <avr/cpufunc.h>
 #include <avr/interrupt.h>
@@ -31,9 +32,9 @@ typedef union {
 
 static uint16_32_t rtc_systime; // in 1/1024 seconds
 static inline void rtc_UpdateSystime(void) {
-    // save SR
-    rtc_systime.u16.l = rtc_GetCNT();
-    // restore SR
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        rtc_systime.u16.l = rtc_GetCNT();
+    }
 }
 
 typedef struct {
@@ -153,25 +154,27 @@ static void rtc_SendLEDEvent(void) {
 }
 
 static inline void rtc_ManageCMP(void) {
-    uint8_t proc_timer = rtc_PeekTimerProcessList();
-    if(proc_timer != RTC_PROCESS_TIMER_UNUSED) {
-        if(rtc_timers[proc_timer].status == RTC_ST_RUNNING) {
-            if(rtc_timers[proc_timer].compare.u16.h == rtc_systime.u16.h) {
-                // set CMP to u16.l
-                if(rtc_timers[proc_timer].compare.u16.l > 5) {
-                    RTC.CMP = rtc_timers[proc_timer].compare.u16.l;
-                    RTC.INTFLAGS = RTC_CMP_bm;  // clr
-                    RTC.INTCTRL |= RTC_CMP_bm;  // enable CMP
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        uint8_t proc_timer = rtc_PeekTimerProcessList();
+        if(proc_timer != RTC_PROCESS_TIMER_UNUSED) {
+            if(rtc_timers[proc_timer].status == RTC_ST_RUNNING) {
+                if(rtc_timers[proc_timer].compare.u16.h == rtc_systime.u16.h) {
+                    // set CMP to u16.l
+                    if(rtc_timers[proc_timer].compare.u16.l > 5) {
+                        RTC.CMP = rtc_timers[proc_timer].compare.u16.l;
+                        RTC.INTFLAGS = RTC_CMP_bm;  // clr
+                        RTC.INTCTRL |= RTC_CMP_bm;  // enable CMP
+                    }
+                    else {
+                        // do call rtc_SendLEDEvent() from here, because sync will not work on only 5 RTC_CNTs
+                        rtc_SendLEDEvent();
+                        // check next CMP right away here
+                        rtc_ManageCMP();
+                    }
                 }
                 else {
-                    // do call rtc_SendLEDEvent() from here, because sync will not work on only 5 RTC_CNTs
-                    rtc_SendLEDEvent();
-                    // check next CMP right away here
-                    rtc_ManageCMP();
+                    RTC.INTCTRL &= ~RTC_CMP_bm; // disable CMP
                 }
-            }
-            else {
-                RTC.INTCTRL &= ~RTC_CMP_bm; // disable CMP
             }
         }
     }

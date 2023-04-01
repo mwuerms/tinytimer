@@ -52,12 +52,12 @@ int main(void)
 	
 	sei();
 
-	ttimer_ProcessEvents(BUTTON1, TT_EV_BUTTON_1s_LONG_PRESSED);
+	leds_ShowRunning(BUTTON1);
+	//leds_ShowPause(BUTTON1);
+	//ttimer_ProcessEvents(BUTTON1, TT_EV_BUTTON_1s_LONG_PRESSED);
 	ttimer_ProcessEvents(BUTTON2, TT_EV_BUTTON_1s_LONG_PRESSED);
 	ttimer_ProcessEvents(BUTTON3, TT_EV_BUTTON_1s_LONG_PRESSED);
 	ttimer_ProcessEvents(BUTTON4, TT_EV_BUTTON_1s_LONG_PRESSED);
-
-	//leds_ShowRunning(0);
 
     while (1) 
     {

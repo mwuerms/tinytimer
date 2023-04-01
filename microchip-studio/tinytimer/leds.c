@@ -10,11 +10,14 @@
 #include "ttimer.h"
 #include <avr/interrupt.h>
 
+#define NB_ELEMENTS(ptr)	(sizeof(ptr)/sizeof(ptr[0]))
+
 static const uint8_t leds_alarm_lookup[] = {0, 9, 37, 79, 128, 176, 218, 246, 255, 246, 218, 176, 128, 79, 37, 9};
-#define LEDS_ALARM_LOOKUP_SIZE	(sizeof(leds_alarm_lookup)/sizeof(leds_alarm_lookup[0]))
+#define LEDS_ALARM_LOOKUP_SIZE	NB_ELEMENTS(leds_alarm_lookup)
 #define LED_ALARM_DELAY_MAX	(2)
-static const uint8_t leds_running_lookup[] = {0, 8, 16, 24, 32, 40, 47, 54, 60, 65, 70, 75, 78, 81, 83, 84, 85, 84, 83, 81, 78, 75, 70, 65, 60, 54, 47, 40, 32, 24, 16, 8};
-#define LEDS_RUNNING_LOOKUP_SIZE	(sizeof(leds_running_lookup)/sizeof(leds_running_lookup[0]))
+
+static const uint8_t leds_running_lookup[] = {0, 1, 6, 15, 26, 39, 54, 70, 85, 100, 113, 124, 133, 138, 140, 138, 133, 124, 113, 100, 85, 70, 54, 39, 26, 15, 6, 1, 0, 0, 0, 0};
+#define LEDS_RUNNING_LOOKUP_SIZE	NB_ELEMENTS(leds_running_lookup)
 #define LED_RUNNING_DELAY_MAX	(4*2)
 
 typedef enum {
@@ -84,7 +87,50 @@ void leds_Display(uint8_t led_nb) {
 			break;
 		case LED_ST_PAUSE:
 			// for a start, code pause later
-			leds_Clr(led_nb);
+			// blink 2x
+			led_ctrl[led_nb].delay++;
+			if(led_ctrl[led_nb].delay == 31) {
+				led_ctrl[led_nb].delay = 0;
+				// slow down, so 8192 Hz -> 256 Hz
+				switch(led_ctrl[led_nb].step) {
+					case 0:
+						led_ctrl[led_nb].cnt++;
+						if(led_ctrl[led_nb].cnt == 20) {
+							led_ctrl[led_nb].cnt = 0;
+							led_ctrl[led_nb].step = 1;
+							leds_Clr(led_nb);
+						}
+						break;
+					case 1:
+						led_ctrl[led_nb].cnt++;
+						if(led_ctrl[led_nb].cnt == 50) {
+							led_ctrl[led_nb].cnt = 0;
+							led_ctrl[led_nb].step = 2;
+							leds_Set(led_nb);
+						}
+						break;
+					case 2:
+						led_ctrl[led_nb].cnt++;
+						if(led_ctrl[led_nb].cnt == 20) {
+							led_ctrl[led_nb].cnt = 0;
+							led_ctrl[led_nb].step = 3;
+							leds_Clr(led_nb);
+						}
+						break;
+					case 3:
+						led_ctrl[led_nb].cnt++;
+						if(led_ctrl[led_nb].cnt == 250) {
+							led_ctrl[led_nb].cnt = 0;
+							led_ctrl[led_nb].step = 0;
+							leds_Set(led_nb);
+						}
+						break;
+					default:
+						led_ctrl[led_nb].cnt = 0;
+						led_ctrl[led_nb].step = 0;
+						leds_Clr(led_nb);
+				}
+			}
 			break;
 		case LED_ST_ALARM:
 			led_ctrl[led_nb].cnt++;
@@ -178,7 +224,7 @@ void leds_Off(uint8_t led_nb) {
 }
 
 void leds_ShowRunning(uint8_t led_nb) {
-	ATOMIC_BLOCK(ATOMIC_FORCEON) {
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
 		led_ctrl[led_nb].state = LED_ST_RUNNING;
 		led_ctrl[led_nb].step = 0;
 		led_ctrl[led_nb].cnt = 0;
@@ -189,16 +235,15 @@ void leds_ShowRunning(uint8_t led_nb) {
 }
 
 void leds_ShowPause(uint8_t led_nb) {
-	ATOMIC_BLOCK(ATOMIC_FORCEON) {
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
 		led_ctrl[led_nb].state = LED_ST_PAUSE;
-		leds_Clr(led_nb);
+		leds_Set(led_nb);
 	}
 	return;
 }
 
 void leds_ShowAlarm(uint8_t led_nb) {
-	// use sync from foreground to background, set here new values, use them in ISR (background)
-	ATOMIC_BLOCK(ATOMIC_FORCEON) {
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
 		led_ctrl[led_nb].state = LED_ST_ALARM;
 		led_ctrl[led_nb].step = 0;
 		led_ctrl[led_nb].cnt = 0;
