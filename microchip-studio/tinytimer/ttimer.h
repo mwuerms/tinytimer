@@ -11,6 +11,10 @@
 #include <stdbool.h>
 #include <avr/sfr_defs.h>
 
+#define TTIMER1 (0)
+#define TTIMER2 (1)
+#define TTIMER3 (2)
+#define TTIMER4 (3)
 #define NB_TTIMER   4   // in use: 0 ... (NB_TTIMER-1)
 #define ttimer_IsNumberValid(nb) (nb <= (NB_TTIMER-1)) ? true : false
 

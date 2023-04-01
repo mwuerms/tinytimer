@@ -8,6 +8,7 @@
 #include <avr/cpufunc.h>
 #include <avr/interrupt.h>
 #include "project.h"
+#include "io.h"
 #include "rtc.h"
 #include "ttimer.h"
 #include "pwr.h"
@@ -47,6 +48,8 @@ static rtc_timer_t rtc_timers[NB_RTC_TIMER];
 static volatile uint8_t rtc_timer_process_list[NB_RTC_TIMER+1]; // store timer_nb to reference in rtc_timers
 #define RTC_PROCESS_TIMER_LIST_SIZE (sizeof(rtc_timer_process_list)/sizeof(rtc_timer_process_list[0]))
 #define RTC_PROCESS_TIMER_UNUSED 0xFF
+
+static inline void rtc_ManageCMP(void);
 
 static inline void rtc_UpdateDurationOfRTCTimer(uint8_t timer_nb, uint32_t now) {
     rtc_timers[timer_nb].starttime.u32 = rtc_systime.u32;   // now
@@ -93,6 +96,8 @@ static uint8_t rtc_SortTimerInTimerProcessListByDuration(uint8_t timer_nb) {
             break;
         }
     }
+    rtc_UpdateSystime();
+    rtc_ManageCMP();
     return 0;
 }
 
@@ -147,25 +152,26 @@ static void rtc_SendLEDEvent(void) {
     }
 }
 
-static void rtc_ProcessOVF(void) {
+static inline void rtc_ManageCMP(void) {
     uint8_t proc_timer = rtc_PeekTimerProcessList();
-    RTC.INTFLAGS = RTC_OVF_bm;   // clr
-    rtc_systime.u16.h++;    // ovf -> so h++
     if(proc_timer != RTC_PROCESS_TIMER_UNUSED) {
         if(rtc_timers[proc_timer].status == RTC_ST_RUNNING) {
             if(rtc_timers[proc_timer].compare.u16.h == rtc_systime.u16.h) {
                 // set CMP to u16.l
                 if(rtc_timers[proc_timer].compare.u16.l > 5) {
                     RTC.CMP = rtc_timers[proc_timer].compare.u16.l;
-                    RTC.INTFLAGS = RTC_CMP_bm;   // clr
-                    RTC.INTCTRL |= RTC_CMP_bm;
+                    RTC.INTFLAGS = RTC_CMP_bm;  // clr
+                    RTC.INTCTRL |= RTC_CMP_bm;  // enable CMP
                 }
                 else {
                     // do call rtc_SendLEDEvent() from here, because sync will not work on only 5 RTC_CNTs
                     rtc_SendLEDEvent();
                     // check next CMP right away here
-                    rtc_ProcessOVF();
+                    rtc_ManageCMP();
                 }
+            }
+            else {
+                RTC.INTCTRL &= ~RTC_CMP_bm; // disable CMP
             }
         }
     }
@@ -174,15 +180,28 @@ static void rtc_ProcessOVF(void) {
 ISR(RTC_CNT_vect) {
     if(RTC.INTFLAGS & RTC_OVF_bm) {
         // OVF
-        rtc_ProcessOVF();
+        RTC.INTFLAGS = RTC_OVF_bm;   // clr
+        rtc_systime.u16.h++;    // ovf -> so h++
+        DBG2_PIN_CLR();
+        DBG2_PIN_SET();
+        DBG2_PIN_CLR();
+        DBG2_PIN_SET();
+        rtc_ManageCMP();
+        
     }
     if(RTC.INTFLAGS & RTC_CMP_bm) {
         // CMP
         RTC.INTCTRL &= ~RTC_CMP_bm; // only once
         RTC.INTFLAGS = RTC_CMP_bm;   // clr
+        DBG2_PIN_CLR();
+        DBG2_PIN_SET();
+        DBG2_PIN_CLR();
+        DBG2_PIN_SET();
+        DBG2_PIN_CLR();
+        DBG2_PIN_SET();
         rtc_SendLEDEvent();
         // check next CMP right away here
-        rtc_ProcessOVF();
+        rtc_ManageCMP();
     }
 }
 
@@ -194,6 +213,8 @@ void rtc_Init(void) {
     }
     rtc_InitTimerProcessList();
     pwr_ClaimMode(PWR_POWER_DOWN);
+    DBG2_DIR_OUT();
+    DBG2_PIN_CLR();
 }
 
 void rtc_StartModule(void) {
@@ -237,6 +258,8 @@ void rtc_StartSingleTimeout(uint8_t timer_nb, uint16_t duration_s) {
     rtc_timers[timer_nb].status = RTC_ST_RUNNING;
 
     rtc_SortTimerInTimerProcessListByDuration(timer_nb);
+
+    DBG2_PIN_SET();
     return;
 }
 

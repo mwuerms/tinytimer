@@ -4,6 +4,7 @@
  * module tiny timer
  */
 
+#include <util/atomic.h>
 #include "ttimer.h"
 #include "rtc.h"
 #include "leds.h"
@@ -11,10 +12,10 @@
 #define min_in_s(m)	(m * 60)
 
 static const uint16_t timeout_sec_const[NB_TTIMER] = {
-	min_in_s(3),
-	min_in_s(5),
-	min_in_s(10),
-	min_in_s(25),
+	7,//min_in_s(3),
+	10, //min_in_s(5),
+	13, //min_in_s(10),
+	18, //min_in_s(25),
 };
 
 static const uint16_t alarm_duration = 20;
@@ -45,9 +46,9 @@ void ttimer_Init(void) {
 }
 
 void ttimer_ProcessEvents(uint8_t ttimer_nb, uint8_t events) {
-	if(ttimer_IsNumberValid(ttimer_nb) == false) {
+	/*if(ttimer_IsNumberValid(ttimer_nb) == false) {
 		return;
-	}
+	}*/
 	switch(ttimer_ctrl[ttimer_nb].state) {
 		case TT_ST_OFF:
 			if(events & TT_EV_BUTTON_1s_LONG_PRESSED) {

@@ -3,16 +3,18 @@
  * 2023-03-21
  * module timer
  */
+
+#include <util/atomic.h>
 #include "io.h"
 #include "leds.h"
 #include "ttimer.h"
 #include <avr/interrupt.h>
 
-static const uint8_t leds_alarm_sin_lookup[] = {0, 9, 37, 79, 128, 176, 218, 246, 255, 246, 218, 176, 128, 79, 37, 9};
-#define LEDS_ALARM_SIN_LOOKUP_SIZE	(sizeof(leds_alarm_sin_lookup)/sizeof(leds_alarm_sin_lookup[0]))
+static const uint8_t leds_alarm_lookup[] = {0, 9, 37, 79, 128, 176, 218, 246, 255, 246, 218, 176, 128, 79, 37, 9};
+#define LEDS_ALARM_LOOKUP_SIZE	(sizeof(leds_alarm_lookup)/sizeof(leds_alarm_lookup[0]))
 #define LED_ALARM_DELAY_MAX	(2)
-static const uint8_t leds_running_sin_lookup[] = {0, 8, 16, 24, 32, 40, 47, 54, 60, 65, 70, 75, 78, 81, 83, 84, 85, 84, 83, 81, 78, 75, 70, 65, 60, 54, 47, 40, 32, 24, 16, 8};
-#define LEDS_RUNNING_SIN_LOOKUP_SIZE	(sizeof(leds_running_sin_lookup)/sizeof(leds_running_sin_lookup[0]))
+static const uint8_t leds_running_lookup[] = {0, 8, 16, 24, 32, 40, 47, 54, 60, 65, 70, 75, 78, 81, 83, 84, 85, 84, 83, 81, 78, 75, 70, 65, 60, 54, 47, 40, 32, 24, 16, 8};
+#define LEDS_RUNNING_LOOKUP_SIZE	(sizeof(leds_running_lookup)/sizeof(leds_running_lookup[0]))
 #define LED_RUNNING_DELAY_MAX	(4*2)
 
 typedef enum {
@@ -62,7 +64,7 @@ void leds_Display(uint8_t led_nb) {
 	switch(led_ctrl[led_nb].state) {
 		case LED_ST_RUNNING:
 			led_ctrl[led_nb].cnt++;
-			if(led_ctrl[led_nb].cnt < leds_running_sin_lookup[led_ctrl[led_nb].step]) {
+			if(led_ctrl[led_nb].cnt < leds_running_lookup[led_ctrl[led_nb].step]) {
 				leds_Set(led_nb);
 			}
 			else {
@@ -75,7 +77,7 @@ void leds_Display(uint8_t led_nb) {
 					led_ctrl[led_nb].delay = 0;
 					// ++ step after delay
 					led_ctrl[led_nb].step++;
-					if(led_ctrl[led_nb].step == LEDS_RUNNING_SIN_LOOKUP_SIZE)
+					if(led_ctrl[led_nb].step == LEDS_RUNNING_LOOKUP_SIZE)
 						led_ctrl[led_nb].step = 0;
 				}
 			}
@@ -86,18 +88,18 @@ void leds_Display(uint8_t led_nb) {
 			break;
 		case LED_ST_ALARM:
 			led_ctrl[led_nb].cnt++;
-			if(led_ctrl[led_nb].cnt < leds_alarm_sin_lookup[led_ctrl[led_nb].step]) {
+			if(led_ctrl[led_nb].cnt < leds_alarm_lookup[led_ctrl[led_nb].step]) {
 				leds_Set(led_nb);
 			}
 			else {
-				leds_Clr(led_nb);	
+				leds_Clr(led_nb);
 			}
 			if(led_ctrl[led_nb].cnt == 0) {
 				led_ctrl[led_nb].delay++;
 				if(led_ctrl[led_nb].delay == LED_ALARM_DELAY_MAX) {
 					led_ctrl[led_nb].delay = 0;
 					led_ctrl[led_nb].step++;
-					if(led_ctrl[led_nb].step == LEDS_ALARM_SIN_LOOKUP_SIZE)
+					if(led_ctrl[led_nb].step == LEDS_ALARM_LOOKUP_SIZE)
 						led_ctrl[led_nb].step = 0;
 				}
 			}
@@ -176,22 +178,32 @@ void leds_Off(uint8_t led_nb) {
 }
 
 void leds_ShowRunning(uint8_t led_nb) {
-	led_ctrl[led_nb].state = LED_ST_RUNNING;
-	led_ctrl[led_nb].step = 0;
-	led_ctrl[led_nb].cnt = 0;
-	led_ctrl[led_nb].delay = 0;
-	leds_Set(led_nb);
+	ATOMIC_BLOCK(ATOMIC_FORCEON) {
+		led_ctrl[led_nb].state = LED_ST_RUNNING;
+		led_ctrl[led_nb].step = 0;
+		led_ctrl[led_nb].cnt = 0;
+		led_ctrl[led_nb].delay = 0;
+		leds_Clr(led_nb);
+	}
 	return;
 }
 
 void leds_ShowPause(uint8_t led_nb) {
-	led_ctrl[led_nb].state = LED_ST_PAUSE;
+	ATOMIC_BLOCK(ATOMIC_FORCEON) {
+		led_ctrl[led_nb].state = LED_ST_PAUSE;
+		leds_Clr(led_nb);
+	}
 	return;
 }
 
 void leds_ShowAlarm(uint8_t led_nb) {
-	led_ctrl[led_nb].state = LED_ST_ALARM;
-	led_ctrl[led_nb].step = 0;
-	led_ctrl[led_nb].cnt = 0;
+	// use sync from foreground to background, set here new values, use them in ISR (background)
+	ATOMIC_BLOCK(ATOMIC_FORCEON) {
+		led_ctrl[led_nb].state = LED_ST_ALARM;
+		led_ctrl[led_nb].step = 0;
+		led_ctrl[led_nb].cnt = 0;
+		led_ctrl[led_nb].delay = 0;
+		leds_Clr(led_nb);
+	}
 	return;
 }
