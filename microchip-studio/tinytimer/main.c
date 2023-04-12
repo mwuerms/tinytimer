@@ -14,6 +14,7 @@
 #include "pwr.h"
 #include "rtc.h"
 #include "ttimer.h"
+#include "dbguart.h"
 
 volatile uint8_t global_events;
 
@@ -38,9 +39,10 @@ int main(void)
 
 	clock_init();
 	cpuint_Init();
+	dbguart_Init();
+	dbguart_SendString("hello from tinyTimer\n");
 
 	leds_Init();
-	
 	pwr_Init();
 	pwr_ClaimMode(PWR_RUN);
 		
@@ -52,13 +54,14 @@ int main(void)
 	
 	sei();
 
+	/* testing
 	leds_ShowRunning(BUTTON1);
 	//leds_ShowPause(BUTTON1);
 	//ttimer_ProcessEvents(BUTTON1, TT_EV_BUTTON_1s_LONG_PRESSED);
 	ttimer_ProcessEvents(BUTTON2, TT_EV_BUTTON_1s_LONG_PRESSED);
 	ttimer_ProcessEvents(BUTTON3, TT_EV_BUTTON_1s_LONG_PRESSED);
 	ttimer_ProcessEvents(BUTTON4, TT_EV_BUTTON_1s_LONG_PRESSED);
-
+	*/
     while (1) 
     {
 		if(local_events & EV_BUTTON) {

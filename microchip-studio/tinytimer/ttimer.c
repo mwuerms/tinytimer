@@ -18,7 +18,7 @@ static const uint16_t timeout_sec_const[NB_TTIMER] = {
 	18, //min_in_s(25),
 };
 
-static const uint16_t alarm_duration = 20;
+static const uint16_t alarm_duration = 10;
 
 // states of ttimer
 typedef enum {
@@ -51,14 +51,21 @@ void ttimer_ProcessEvents(uint8_t ttimer_nb, uint8_t events) {
 	}*/
 	switch(ttimer_ctrl[ttimer_nb].state) {
 		case TT_ST_OFF:
-			if(events & TT_EV_BUTTON_1s_LONG_PRESSED) {
+			if(events & (TT_EV_BUTTON_SHORT_PRESSED | TT_EV_BUTTON_1s_LONG_PRESSED)) {
 				// starting
 				ttimer_ctrl[ttimer_nb].state = TT_ST_RUNNING;
 				// duration and stuff ttimer_ctrl[ttimer_nb].
 				rtc_StartSingleTimeout(ttimer_nb, ttimer_ctrl[ttimer_nb].timeout_sec);
 				leds_ShowRunning(ttimer_nb);
 			}
+			else if(events & TT_EV_BUTTON_2s_LONG_PRESSED) {
+				// stop
+				ttimer_ctrl[ttimer_nb].state = TT_ST_OFF;
+				rtc_StopTimeout(ttimer_nb);
+				leds_Off(ttimer_nb);
+			}
 			break;
+
 		case TT_ST_RUNNING:
 			if(events & TT_EV_TIMEOUT) {
 				// alarm

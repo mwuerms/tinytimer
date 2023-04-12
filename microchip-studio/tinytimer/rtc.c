@@ -46,7 +46,7 @@ typedef struct {
 } rtc_timer_t;
 
 static rtc_timer_t rtc_timers[NB_RTC_TIMER];
-static volatile uint8_t rtc_timer_process_list[NB_RTC_TIMER+1]; // store timer_nb to reference in rtc_timers
+static volatile uint8_t rtc_timer_process_list[2*NB_RTC_TIMER+1]; // store timer_nb to reference in rtc_timers
 #define RTC_PROCESS_TIMER_LIST_SIZE (sizeof(rtc_timer_process_list)/sizeof(rtc_timer_process_list[0]))
 #define RTC_PROCESS_TIMER_UNUSED 0xFF
 

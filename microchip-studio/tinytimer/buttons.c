@@ -4,6 +4,7 @@
  * module timer
  */
 
+#include <util/atomic.h>
 #include <avr/interrupt.h>
 #include "project.h"
 #include "io.h"
@@ -89,39 +90,42 @@ void buttons_Init(void) {
 #define RTC_CNT_2s		(2*1024) // 2.0s * 1024
 static uint16_t button_rtc_cnt_pressed[NB_BUTTONS];
 void button_ProcessEvent(void) {
-	uint16_t rtc_cnt_value = rtc_GetCNT();
+	uint16_t rtc_cnt_value;
 	uint8_t button_nb, proc_last_state;
-	for(button_nb = BUTTON1; button_nb < NB_BUTTONS; button_nb++) {
-		// sync from background
-		// atomic
-		proc_last_state = button_last_state[button_nb];
-		button_last_state[button_nb] = BUTTON_NONE;
-		// atomic
-		if(proc_last_state == BUTTON_PRESSED) {
-			// falling edge: pressed
-			button_rtc_cnt_pressed[button_nb] = rtc_cnt_value; // save to evaluate released
-		}
-		else if(proc_last_state == BUTTON_RELEASED) {
-			// rising edge: released
-			if(rtc_cnt_value > button_rtc_cnt_pressed[button_nb]) {
-				rtc_cnt_value -= button_rtc_cnt_pressed[button_nb];
+
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		rtc_cnt_value = rtc_GetCNT();
+		for(button_nb = BUTTON1; button_nb < NB_BUTTONS; button_nb++) {
+			// sync from background
+			proc_last_state = button_last_state[button_nb];
+			button_last_state[button_nb] = BUTTON_NONE;
+
+			if(proc_last_state == BUTTON_PRESSED) {
+				// falling edge: pressed
+				button_rtc_cnt_pressed[button_nb] = rtc_cnt_value; // save to evaluate released
 			}
-			else {
-				button_rtc_cnt_pressed[button_nb] -= rtc_cnt_value;
-				rtc_cnt_value = button_rtc_cnt_pressed[button_nb];
-			}
-			if(rtc_cnt_value < RTC_CNT_100ms) {
-				// too short, nothing to do
-				return;
-			}
-			else if(rtc_cnt_value < RTC_CNT_1s) {
-				ttimer_ProcessEvents(button_nb, TT_EV_BUTTON_SHORT_PRESSED);
-			}
-			else if(rtc_cnt_value < RTC_CNT_2s) {
-				ttimer_ProcessEvents(button_nb, TT_EV_BUTTON_1s_LONG_PRESSED);
-			}
-			else {
-				ttimer_ProcessEvents(button_nb, TT_EV_BUTTON_2s_LONG_PRESSED);
+			else if(proc_last_state == BUTTON_RELEASED) {
+				// rising edge: released
+				if(rtc_cnt_value > button_rtc_cnt_pressed[button_nb]) {
+					rtc_cnt_value -= button_rtc_cnt_pressed[button_nb];
+				}
+				else {
+					button_rtc_cnt_pressed[button_nb] -= rtc_cnt_value;
+					rtc_cnt_value = button_rtc_cnt_pressed[button_nb];
+				}
+				if(rtc_cnt_value < RTC_CNT_100ms) {
+					// too short, nothing to do
+					return;
+				}
+				else if(rtc_cnt_value < RTC_CNT_1s) {
+					ttimer_ProcessEvents(button_nb, TT_EV_BUTTON_SHORT_PRESSED);
+				}
+				else if(rtc_cnt_value < RTC_CNT_2s) {
+					ttimer_ProcessEvents(button_nb, TT_EV_BUTTON_1s_LONG_PRESSED);
+				}
+				else {
+					ttimer_ProcessEvents(button_nb, TT_EV_BUTTON_2s_LONG_PRESSED);
+				}
 			}
 		}
 	}

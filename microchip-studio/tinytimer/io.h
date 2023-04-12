@@ -47,7 +47,7 @@
 #define BUTTON4_PIN_BV	_BV(BUTTON4_PIN)
 #define BUTTON4_PIN_CTRL	PIN##3##CTRL
 
-// DBG1: PA1
+// DBG1: PA1 (TxD, alternate)
 #define DBG1_PORT	    PORTA
 #define DBG1_PIN		1
 #define DBG1_PIN_BV		_BV(DBG1_PIN)

@@ -126,6 +126,9 @@
     <Compile Include="buttons.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="dbguart.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="io.h">
       <SubType>compile</SubType>
     </Compile>
@@ -157,6 +160,12 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="ttimer.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="uart.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="uart.h">
       <SubType>compile</SubType>
     </Compile>
   </ItemGroup>

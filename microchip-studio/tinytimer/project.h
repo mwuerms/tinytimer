@@ -15,4 +15,6 @@ extern volatile uint8_t global_events;
 #define EV_BUTTON   _BV(1)
 #define EV_RTC      _BV(2)
 
+#define DBG_UART() 1 // 1: on, 0: off
+
 #endif
