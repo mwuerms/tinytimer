@@ -40,18 +40,28 @@ int main(void)
 	clock_init();
 	cpuint_Init();
 	dbguart_Init();
-	dbguart_SendString("hello from tinyTimer\n");
+	dbguart_SendString("hello from tinyTimer\n initialize ");
 
 	leds_Init();
+	dbguart_SendChar('.');
 	pwr_Init();
+	dbguart_SendChar('.');
 	pwr_ClaimMode(PWR_RUN);
+	dbguart_SendChar('.');
 		
 	leds_Init();
+	dbguart_SendChar('.');
 	buttons_Init();
+	dbguart_SendChar('.');
 	rtc_Init();
+	dbguart_SendChar('.');
 	rtc_StartModule();
+	dbguart_SendChar('.');
 	ttimer_Init();
-	
+	dbguart_SendChar('.');
+
+	dbguart_SendString(" done\n");
+
 	sei();
 
 	/* testing

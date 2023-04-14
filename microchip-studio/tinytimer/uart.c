@@ -8,12 +8,25 @@
 #include <avr/cpufunc.h>
 #include <avr/interrupt.h>
 #include <avr/io.h>
+#include "io.h"
 #include "uart.h"
 
 // define UART
 #define UART USART0
 
 void uart_Init(void) {
+	DBG1_DIR_OUT();/*
+	DBG1_PIN_SET();
+	DBG1_PIN_CLR();
+	DBG1_PIN_SET();
+	DBG1_PIN_SET();
+	DBG1_PIN_CLR();
+	DBG1_PIN_SET();
+	DBG1_PIN_CLR();
+	DBG1_PIN_SET();
+	DBG1_PIN_CLR();
+	DBG1_PIN_SET();*/
+	UART.CTRLB = USART_TXEN_bm; // enable TXD
 	// use alternate output: PA1 for TXD
     PORTMUX.CTRLB = PORTMUX_USART0_ALTERNATE_gc;
 	// baudrate: 115200
@@ -32,13 +45,16 @@ void uart_Init(void) {
 	}
 	// use standard settings
 	//UART.CTRLA
-	UART.CTRLB = USART_TXEN_bm; // enable TXD
 	//UART.CTRLC: asynchronous, 8 bit, no parity, 1 stop bit
 }
 
 static inline void uart_TransmitCharBlocking(char c) {
 	while((UART.STATUS & USART_TXCIF_bm) == 0);// wait until data can be sent
 	UART.STATUS |= USART_TXCIF_bm;	// clear
+	UART.TXDATAL = (uint8_t)c;
+}
+
+void uart_SendChar(char c) {
 	UART.TXDATAL = (uint8_t)c;
 }
 

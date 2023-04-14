@@ -11,6 +11,8 @@
 #include <stdint.h>
 
 void uart_Init(void);
+
+void uart_SendChar(char c);
 void uart_SendCharBlocking(char c);
 void uart_SendStringBlocking(char *str);
 
