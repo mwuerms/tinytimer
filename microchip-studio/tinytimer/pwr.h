@@ -18,7 +18,7 @@ typedef enum {
 
 void pwr_Init(void);
 void pwr_Sleep(void);
-void pwr_ClaimMode(uint8_t mode);
+void pwr_UseMode(uint8_t mode);
 void pwr_ReleaseMode(uint8_t mode);
 
 #endif

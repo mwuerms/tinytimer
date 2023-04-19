@@ -46,7 +46,7 @@ int main(void)
 	dbguart_SendChar('.');
 	pwr_Init();
 	dbguart_SendChar('.');
-	pwr_ClaimMode(PWR_RUN);
+	pwr_UseMode(PWR_POWER_DOWN);
 	dbguart_SendChar('.');
 		
 	leds_Init();

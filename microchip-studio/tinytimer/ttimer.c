@@ -12,10 +12,10 @@
 #define min_in_s(m)	(m * 60)
 
 static const uint16_t timeout_sec_const[NB_TTIMER] = {
-	7,//min_in_s(3),
-	10, //min_in_s(5),
-	13, //min_in_s(10),
-	18, //min_in_s(25),
+	min_in_s(3),
+	min_in_s(5),
+	min_in_s(10),
+	min_in_s(25),
 };
 
 static const uint16_t alarm_duration = 10;

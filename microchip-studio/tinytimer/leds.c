@@ -5,10 +5,11 @@
  */
 
 #include <util/atomic.h>
+#include <avr/interrupt.h>
 #include "io.h"
 #include "leds.h"
 #include "ttimer.h"
-#include <avr/interrupt.h>
+#include "pwr.h"
 
 #define NB_ELEMENTS(ptr)	(sizeof(ptr)/sizeof(ptr[0]))
 
@@ -21,11 +22,11 @@ static const uint8_t leds_running_lookup[] = {0, 1, 6, 15, 26, 39, 54, 70, 85, 1
 #define LED_RUNNING_DELAY_MAX	(4*2)
 
 typedef enum {
-	LED_ST_OFF = 0,
-	LED_ST_ON,
-	LED_ST_RUNNING,
-	LED_ST_PAUSE,
-	LED_ST_ALARM
+	LED_ST_OFF = 0,	//  no tb0
+	LED_ST_ON,		//  no tb0
+	LED_ST_RUNNING,	// use tb0
+	LED_ST_PAUSE,	// use tb0
+	LED_ST_ALARM	// use tb0
 } led_states_t;
 
 typedef struct {
@@ -168,12 +169,16 @@ ISR(TCB0_INT_vect) {
 }
 
 static uint8_t tcb0_ctrl;
-static void tcb0_start(void) {
-	if(tcb0_ctrl) {
+static void tcb0_Stop(void) {
+	tcb0_ctrl = 0;
+	TCB0.CTRLA = 0; // stop
+}
+static void tcb0_Start(void) {
+	/*if(tcb0_ctrl) {
 		// already running
 		return;
 	}
-	tcb0_ctrl = 1;
+	tcb0_ctrl = 1;*/
 	if((FUSE.OSCCFG & FUSE_FREQSEL_gm) == 0x01) {
 		// 16MHz (main): CLK_PER: 2.33MHz/2
 		TCB0.CCMP = (16000000UL/6/2/(4096*2));
@@ -185,7 +190,22 @@ static void tcb0_start(void) {
 	TCB0.INTFLAGS = TCB_CAPT_bm; //irq clear
 	TCB0.INTCTRL = TCB_CAPT_bm; //irq enable
 	TCB0.CTRLB = TCB_CNTMODE_INT_gc;
-	TCB0.CTRLA = TCB_ENABLE_bm; //enable, div1
+	TCB0.CTRLA = TCB_RUNSTDBY_bm|TCB_ENABLE_bm; //enable, div1
+}
+
+static void tb0_CheckUsage(void) {
+	uint8_t n;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		for(n = 0; n < NB_TTIMER; n++) {
+			if(led_ctrl[n].state > LED_ST_ON) {
+				// is in use
+				tcb0_Start();
+				return;
+			}
+		}
+		// unused
+		tcb0_Stop();
+	}
 }
 
 void leds_Init(void) {
@@ -207,20 +227,19 @@ void leds_Init(void) {
 	LED3_PORT.DIRSET = LED3_PIN_BV;
 	LED4_PORT.OUTCLR = LED4_PIN_BV;
 	LED4_PORT.DIRSET = LED4_PIN_BV;
-
-	tcb0_start();
+	pwr_UseMode(PWR_POWER_DOWN);
 }
 
 void leds_On(uint8_t led_nb) {
 	led_ctrl[led_nb].state = LED_ST_ON;
 	leds_Set(led_nb);
-	return;
+	tb0_CheckUsage();
 }
 
 void leds_Off(uint8_t led_nb) {
 	led_ctrl[led_nb].state = LED_ST_OFF;
 	leds_Clr(led_nb);
-	return;
+	tb0_CheckUsage();
 }
 
 void leds_ShowRunning(uint8_t led_nb) {
@@ -231,7 +250,7 @@ void leds_ShowRunning(uint8_t led_nb) {
 		led_ctrl[led_nb].delay = 0;
 		leds_Clr(led_nb);
 	}
-	return;
+	tb0_CheckUsage();
 }
 
 void leds_ShowPause(uint8_t led_nb) {
@@ -239,7 +258,7 @@ void leds_ShowPause(uint8_t led_nb) {
 		led_ctrl[led_nb].state = LED_ST_PAUSE;
 		leds_Set(led_nb);
 	}
-	return;
+	tb0_CheckUsage();
 }
 
 void leds_ShowAlarm(uint8_t led_nb) {
@@ -250,5 +269,5 @@ void leds_ShowAlarm(uint8_t led_nb) {
 		led_ctrl[led_nb].delay = 0;
 		leds_Clr(led_nb);
 	}
-	return;
+	tb0_CheckUsage();
 }

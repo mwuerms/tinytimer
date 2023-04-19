@@ -23,23 +23,19 @@ ISR(PORTA_PORT_vect) {
 	if(BUTTON1_PORT.INTFLAGS & BUTTON1_PIN_BV) {
 		BUTTON1_PORT.INTFLAGS |= BUTTON1_PIN_BV; // clr
 		if(BUTTON1_PORT.IN & BUTTON1_PIN_BV) {
-			//button_last_state[BUTTON1] = BUTTON_RELEASED;
-			leds_Off(BUTTON1);
+			button_last_state[BUTTON1] = BUTTON_RELEASED;
 		}
 		else {
-			//button_last_state[BUTTON1] = BUTTON_PRESSED;
-			leds_On(BUTTON1);
+			button_last_state[BUTTON1] = BUTTON_PRESSED;
 		}
 	}
 	if(BUTTON2_PORT.INTFLAGS & BUTTON2_PIN_BV) {
 		BUTTON2_PORT.INTFLAGS |= BUTTON2_PIN_BV; // clr
 		if(BUTTON2_PORT.IN & BUTTON2_PIN_BV) {
-			//button_last_state[BUTTON2] = BUTTON_RELEASED;
-			leds_Off(BUTTON2);
+			button_last_state[BUTTON2] = BUTTON_RELEASED;
 		}
 		else {
-			//button_last_state[BUTTON2] = BUTTON_PRESSED;
-			leds_On(BUTTON2);
+			button_last_state[BUTTON2] = BUTTON_PRESSED;
 		}
 	}
 	global_events |= EV_BUTTON;
@@ -49,23 +45,19 @@ ISR(PORTB_PORT_vect) {
 	if(BUTTON3_PORT.INTFLAGS & BUTTON3_PIN_BV) {
 		BUTTON3_PORT.INTFLAGS |= BUTTON3_PIN_BV; // clr
 		if(BUTTON3_PORT.IN & BUTTON3_PIN_BV) {
-			//button_last_state[BUTTON3] = BUTTON_RELEASED;
-			leds_Off(BUTTON3);
+			button_last_state[BUTTON3] = BUTTON_RELEASED;
 		}
 		else {
-			//button_last_state[BUTTON3] = BUTTON_PRESSED;
-			leds_On(BUTTON3);
+			button_last_state[BUTTON3] = BUTTON_PRESSED;
 		}
 	}
 	if(BUTTON4_PORT.INTFLAGS & BUTTON4_PIN_BV) {
 		BUTTON4_PORT.INTFLAGS |= BUTTON4_PIN_BV; // clr
 		if(BUTTON4_PORT.IN & BUTTON4_PIN_BV) {
-			//button_last_state[BUTTON4] = BUTTON_RELEASED;
-			leds_Off(BUTTON4);
+			button_last_state[BUTTON4] = BUTTON_RELEASED;
 		}
 		else {
-			//button_last_state[BUTTON4] = BUTTON_PRESSED;
-			leds_On(BUTTON4);
+			button_last_state[BUTTON4] = BUTTON_PRESSED;
 		}
 	}
 	global_events |= EV_BUTTON;
@@ -94,6 +86,8 @@ void buttons_Init(void) {
 	BUTTON4_PORT.BUTTON4_PIN_CTRL = PORT_PULLUPEN_bm | PORT_INT_BOTH_EDGES;
 }
 
+#include "dbguart.h"
+
 #define RTC_CNT_100ms	(uint16_t)(0.1*1024)  // 0.1s * 1024
 #define RTC_CNT_1s		(1*1024) // 1.0s * 1024
 #define RTC_CNT_2s		(2*1024) // 2.0s * 1024
@@ -102,6 +96,7 @@ void button_ProcessEvent(void) {
 	uint16_t rtc_cnt_value;
 	uint8_t button_nb, proc_last_state;
 
+	dbguart_SendString("BTN_EV ");
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
 		rtc_cnt_value = rtc_GetCNT();
 		for(button_nb = BUTTON1; button_nb < NB_BUTTONS; button_nb++) {
@@ -112,6 +107,7 @@ void button_ProcessEvent(void) {
 			if(proc_last_state == BUTTON_PRESSED) {
 				// falling edge: pressed
 				button_rtc_cnt_pressed[button_nb] = rtc_cnt_value; // save to evaluate released
+				dbguart_SendChar('P');
 			}
 			else if(proc_last_state == BUTTON_RELEASED) {
 				// rising edge: released
@@ -122,9 +118,11 @@ void button_ProcessEvent(void) {
 					button_rtc_cnt_pressed[button_nb] -= rtc_cnt_value;
 					rtc_cnt_value = button_rtc_cnt_pressed[button_nb];
 				}
+				dbguart_SendChar('R');
+
 				if(rtc_cnt_value < RTC_CNT_100ms) {
 					// too short, nothing to do
-					return;
+					break;
 				}
 				else if(rtc_cnt_value < RTC_CNT_1s) {
 					ttimer_ProcessEvents(button_nb, TT_EV_BUTTON_SHORT_PRESSED);

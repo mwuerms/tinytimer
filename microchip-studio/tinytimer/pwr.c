@@ -5,49 +5,86 @@
  */
 
 #include <stdint.h>
-#include <avr/interrupt.h>
 #include <avr/cpufunc.h>
+#include <avr/interrupt.h>
 #include <avr/sleep.h>
+#include "io.h"
 #include "pwr.h"
+#include "dbguart.h"
 
-#define PWR_MAX_CLAIM_CNT   100
-static uint8_t pwr_claim_cnts[4];
+#define PWR_MAX_USE_CNT   100
+static uint8_t pwr_use_cnts[4];
 
 void pwr_Init(void) {
-    pwr_claim_cnts[0] = 0;  // PWR_RUN = 0,
-    pwr_claim_cnts[1] = 0;  // PWR_IDLE,
-    pwr_claim_cnts[2] = 0;  // PWR_STANDBY
-    pwr_claim_cnts[3] = 0;  // PWR_POWER_DOWN
+    DBG3_DIR_OUT();
+    DBG3_PIN_CLR();
+    pwr_use_cnts[0] = 0;  // PWR_RUN = 0,
+    pwr_use_cnts[1] = 0;  // PWR_IDLE,
+    pwr_use_cnts[2] = 0;  // PWR_STANDBY
+    pwr_use_cnts[3] = 0;  // PWR_POWER_DOWN
     return;
 }
 
-void pwr_ClaimMode(uint8_t mode) {
-    if(pwr_claim_cnts[mode] < (PWR_MAX_CLAIM_CNT-1)) {
-        pwr_claim_cnts[mode]++;
+void pwr_UseMode(uint8_t mode) {
+    if(pwr_use_cnts[mode] < (PWR_MAX_USE_CNT-1)) {
+        pwr_use_cnts[mode]++;
     }
 }
 
 void pwr_ReleaseMode(uint8_t mode) {
-    if(pwr_claim_cnts[mode]) {
-        pwr_claim_cnts[mode]--;
+    if(pwr_use_cnts[mode]) {
+        pwr_use_cnts[mode]--;
     }
 }
 
 void pwr_Sleep(void) {
-    if(pwr_claim_cnts[0]) {
+    DBG3_PIN_SET();
+
+    dbguart_SendString("PWR ");
+    /*dbguart_SendChar(0);
+    dbguart_SendChar(':');
+    dbguart_SendChar(pwr_use_cnts[0]);
+    dbguart_SendChar(1);
+    dbguart_SendChar(':');
+    dbguart_SendChar(pwr_use_cnts[1]);
+    dbguart_SendChar(2);
+    dbguart_SendChar(':');
+    dbguart_SendChar(pwr_use_cnts[2]);
+    dbguart_SendChar(3);
+    dbguart_SendChar(':');
+    dbguart_SendChar(pwr_use_cnts[3]);*/
+
+    if(pwr_use_cnts[0]) {
         // PWR_RUN
         sei();
+        dbguart_SendChar('R');
+        DBG3_PIN_CLR();
+        return;
     }
-    else if(pwr_claim_cnts[1]) {
+
+	cli();
+    if(pwr_use_cnts[1]) {
         // PWR_IDLE
-        _NOP();
+        SLPCTRL.CTRLA = SLEEP_MODE_IDLE | SLPCTRL_SEN_bm;
+        dbguart_SendChar('I');
     }
-    else if(pwr_claim_cnts[2]) {
+    else if(pwr_use_cnts[2]) {
         // PWR_STANDBY
-        _NOP();
+        SLPCTRL.CTRLA = SLEEP_MODE_STANDBY | SLPCTRL_SEN_bm;
+        dbguart_SendChar('S');
     }
-    else { // if(pwr_claim_cnts[3]) {
+    else { // if(pwr_use_cnts[3]) {
         // PWR_POWER_DOWN
-        _NOP();
+		SLPCTRL.CTRLA = SLEEP_MODE_PWR_DOWN | SLPCTRL_SEN_bm;
+        dbguart_SendChar('P');
     }
+	
+	//sleep_bod_disable();
+    sei();
+    dbguart_SendChar('!');
+    sleep_cpu();
+    //sleep_disable();
+	SLPCTRL.CTRLA = 0x00;
+    sei();
+    DBG3_PIN_CLR();
 }

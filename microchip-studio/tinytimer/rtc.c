@@ -14,6 +14,7 @@
 #include "ttimer.h"
 #include "pwr.h"
 #include "leds.h"
+#include "dbguart.h"
 
 typedef enum {
     RTC_ST_OFF = 0,
@@ -46,7 +47,7 @@ typedef struct {
 } rtc_timer_t;
 
 static rtc_timer_t rtc_timers[NB_RTC_TIMER];
-static volatile uint8_t rtc_timer_process_list[2*NB_RTC_TIMER+1]; // store timer_nb to reference in rtc_timers
+static volatile uint8_t rtc_timer_process_list[NB_RTC_TIMER+2]; // store timer_nb to reference in rtc_timers
 #define RTC_PROCESS_TIMER_LIST_SIZE (sizeof(rtc_timer_process_list)/sizeof(rtc_timer_process_list[0]))
 #define RTC_PROCESS_TIMER_UNUSED 0xFF
 
@@ -153,8 +154,29 @@ static void rtc_SendLEDEvent(void) {
     }
 }
 
+#if DBG_UART()
+static inline void rtc_PrintTimerProcessList(void) {
+    uint8_t n, proc_timer;
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        dbguart_SendString("_PTL");
+        for(n = 0; n < RTC_PROCESS_TIMER_LIST_SIZE; n ++) {
+            proc_timer = rtc_timer_process_list[n];
+            dbguart_SendChar('[');
+            dbguart_SendChar(n);
+            dbguart_SendChar(']');
+            dbguart_SendChar(proc_timer);
+            dbguart_SendChar(',');
+            dbguart_SendChar(rtc_timers[proc_timer].status);
+        }
+    }
+}
+#else
+#define rtc_PrintTimerProcessList(...)
+#endif
+
 static inline void rtc_ManageCMP(void) {
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+        rtc_PrintTimerProcessList();
         uint8_t proc_timer = rtc_PeekTimerProcessList();
         if(proc_timer != RTC_PROCESS_TIMER_UNUSED) {
             if(rtc_timers[proc_timer].status == RTC_ST_RUNNING) {
@@ -189,6 +211,9 @@ ISR(RTC_CNT_vect) {
         DBG2_PIN_SET();
         DBG2_PIN_CLR();
         DBG2_PIN_SET();
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+            dbguart_SendString("RTC_OVF");
+        }
         rtc_ManageCMP();
         
     }
@@ -202,6 +227,9 @@ ISR(RTC_CNT_vect) {
         DBG2_PIN_SET();
         DBG2_PIN_CLR();
         DBG2_PIN_SET();
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+            dbguart_SendString("RTC_CMP");
+        }
         rtc_SendLEDEvent();
         // check next CMP right away here
         rtc_ManageCMP();
@@ -215,7 +243,7 @@ void rtc_Init(void) {
         rtc_timers[n].status = RTC_ST_OFF;
     }
     rtc_InitTimerProcessList();
-    pwr_ClaimMode(PWR_POWER_DOWN);
+    pwr_UseMode(PWR_STANDBY);
     DBG2_DIR_OUT();
     DBG2_PIN_CLR();
 }
