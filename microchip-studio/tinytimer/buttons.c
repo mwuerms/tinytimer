@@ -10,6 +10,7 @@
 #include "io.h"
 #include "buttons.h"
 #include "rtc.h"
+#include "leds.h"
 
 enum {
 	BUTTON_NONE = 0,
@@ -22,19 +23,23 @@ ISR(PORTA_PORT_vect) {
 	if(BUTTON1_PORT.INTFLAGS & BUTTON1_PIN_BV) {
 		BUTTON1_PORT.INTFLAGS |= BUTTON1_PIN_BV; // clr
 		if(BUTTON1_PORT.IN & BUTTON1_PIN_BV) {
-			button_last_state[BUTTON1] = BUTTON_RELEASED;
+			//button_last_state[BUTTON1] = BUTTON_RELEASED;
+			leds_Off(BUTTON1);
 		}
 		else {
-			button_last_state[BUTTON1] = BUTTON_PRESSED;
+			//button_last_state[BUTTON1] = BUTTON_PRESSED;
+			leds_On(BUTTON1);
 		}
 	}
 	if(BUTTON2_PORT.INTFLAGS & BUTTON2_PIN_BV) {
 		BUTTON2_PORT.INTFLAGS |= BUTTON2_PIN_BV; // clr
 		if(BUTTON2_PORT.IN & BUTTON2_PIN_BV) {
-			button_last_state[BUTTON2] = BUTTON_RELEASED;
+			//button_last_state[BUTTON2] = BUTTON_RELEASED;
+			leds_Off(BUTTON2);
 		}
 		else {
-			button_last_state[BUTTON2] = BUTTON_PRESSED;
+			//button_last_state[BUTTON2] = BUTTON_PRESSED;
+			leds_On(BUTTON2);
 		}
 	}
 	global_events |= EV_BUTTON;
@@ -44,19 +49,23 @@ ISR(PORTB_PORT_vect) {
 	if(BUTTON3_PORT.INTFLAGS & BUTTON3_PIN_BV) {
 		BUTTON3_PORT.INTFLAGS |= BUTTON3_PIN_BV; // clr
 		if(BUTTON3_PORT.IN & BUTTON3_PIN_BV) {
-			button_last_state[BUTTON3] = BUTTON_RELEASED;
+			//button_last_state[BUTTON3] = BUTTON_RELEASED;
+			leds_Off(BUTTON3);
 		}
 		else {
-			button_last_state[BUTTON3] = BUTTON_PRESSED;
+			//button_last_state[BUTTON3] = BUTTON_PRESSED;
+			leds_On(BUTTON3);
 		}
 	}
 	if(BUTTON4_PORT.INTFLAGS & BUTTON4_PIN_BV) {
 		BUTTON4_PORT.INTFLAGS |= BUTTON4_PIN_BV; // clr
 		if(BUTTON4_PORT.IN & BUTTON4_PIN_BV) {
-			button_last_state[BUTTON4] = BUTTON_RELEASED;
+			//button_last_state[BUTTON4] = BUTTON_RELEASED;
+			leds_Off(BUTTON4);
 		}
 		else {
-			button_last_state[BUTTON4] = BUTTON_PRESSED;
+			//button_last_state[BUTTON4] = BUTTON_PRESSED;
+			leds_On(BUTTON4);
 		}
 	}
 	global_events |= EV_BUTTON;

@@ -15,9 +15,9 @@
 #define UART USART0
 
 void uart_Init(void) {
-	DBG1_DIR_OUT();/*
+	DBG1_DIR_OUT();
 	DBG1_PIN_SET();
-	DBG1_PIN_CLR();
+	/*DBG1_PIN_CLR();
 	DBG1_PIN_SET();
 	DBG1_PIN_SET();
 	DBG1_PIN_CLR();
@@ -46,6 +46,11 @@ void uart_Init(void) {
 	// use standard settings
 	//UART.CTRLA
 	//UART.CTRLC: asynchronous, 8 bit, no parity, 1 stop bit
+
+	// bugfix
+	// send any character at the start, so this while wont dead lock
+	// while((UART.STATUS & USART_TXCIF_bm) == 0);
+	uart_SendChar('0');
 }
 
 static inline void uart_TransmitCharBlocking(char c) {
